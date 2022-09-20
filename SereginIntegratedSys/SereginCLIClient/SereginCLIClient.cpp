@@ -75,7 +75,7 @@ int CheckCommands(string& str)
         return 3;
     else if (str == "/exit")
         return 1;
-    else if (str ==  "/whisper")
+    else if (str=="/whisper") //str ==  "/whisper"
         return 2;
     else
         return 0;
@@ -133,9 +133,12 @@ void Client()
         }
         else
         {
-            RefreshActiveUsers(m.GetData());
-            PrintActiveUsers();
+            HistoryWrite("server: Hello "+username, username);
             cout << string(100, '\n') << endl;
+            RefreshActiveUsers(m.GetData());
+            HistoryRead(username);
+            PrintActiveUsers();
+            cout << "You are welcome, " << username << endl;
             break;
         }
     }
@@ -174,7 +177,8 @@ void Client()
             if (user != ActiveUsers.end())
             {
                 cout << "Text: " << endl;
-                cin >> str;
+                cin.ignore();
+                getline(cin, str);
                 HistoryWrite("You whisperd to " + user->second + ": " + str, username);
                 Message::Send(user->first, MT_DATA, str);
                 cout << string(100, '\n') << endl;

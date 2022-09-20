@@ -57,7 +57,7 @@ void CheckIfUserIsInactive()
     {
         if (sessions.size() > 0)
         {
-            for (auto& session : sessions)
+            for (auto& session: sessions)
             {
                 if (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()
                     - session.second->GetLastSeen()).count() > timespan)
@@ -69,9 +69,11 @@ void CheckIfUserIsInactive()
                     cs.Unlock();
                 }
                 if (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()
-                    - session.second->GetLastSeen()).count() > timespan * 6)
+                    - session.second->GetLastSeen()).count() > timespan * 2)
                 {
                     sessions.erase(session.first);
+                    cout << "Session " + to_string(session.first) + "deleted" << endl;
+                    break;
                 }
             }
         }
