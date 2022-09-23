@@ -163,7 +163,7 @@ int Client()
         string str;
         cin.clear();
         getline(cin,str);
-        cout << str << "-1" << endl;
+        //cout << str << "-1" << endl;
         int com = CheckCommands(str);
         switch(com)
         {
@@ -201,7 +201,7 @@ int Client()
         default:
         {
             HistoryWrite("You whisperd to " + to_string(com) + ": " + str, username);
-            Message::Send(com, MT_DATA, str);
+            Message::Send(com, MT_DATA, ("(private) ") + str);
             cout << string(100, '\n') << endl;
             HistoryRead(username);
             PrintActiveUsers();
