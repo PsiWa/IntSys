@@ -52,7 +52,7 @@ string GetActiveUsers()
 
 void CheckIfUserIsInactive()
 {
-    int timespan = 60000;
+    int timespan = 30000;
     while (true)
     {
         if (sessions.size() > 0)
@@ -63,20 +63,19 @@ void CheckIfUserIsInactive()
                     - session.second->GetLastSeen()).count() > timespan)
                 {
                     Message m(session.second->id, MR_BROKER, MT_EXIT);
-                    cs.Lock();
                     session.second->MessageAdd(m);
                     cout << session.second->id << " AFK" << endl;
-                    cs.Unlock();
                 }
                 if (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()
                     - session.second->GetLastSeen()).count() > timespan * 2)
                 {
-                    sessions.erase(session.first);
                     cout << "Session " + to_string(session.first) + "deleted" << endl;
+                    sessions.erase(session.first);
                     break;
                 }
             }
         }
+        cout << "CheckIfUserIsInactive() sleeping" << endl;
         Sleep(timespan);
     }
 }
@@ -106,7 +105,7 @@ void ClientProcessing(SOCKET hSock)
             auto session = make_shared<Session>(++maxID, m.GetData());
             sessions[session->id] = session;
             Message::Send(s, session->id, MR_BROKER, MT_INIT, (GetActiveUsers() + "-1"));
-            cout << session->GetName() << " connected" << endl;
+            cout << session->id << " (" << session->GetName() << ") connected" << endl;
             session->SetLastSeen();
         }
         break;
@@ -115,6 +114,7 @@ void ClientProcessing(SOCKET hSock)
     {
         sessions.erase(m.GetFrom());
         Message::Send(s, m.GetFrom(), MR_BROKER, MT_CONFIRM);
+        cout << m.GetFrom() << " exited" << endl;
         break;
     }
     case MT_GETDATA:
@@ -134,7 +134,6 @@ void ClientProcessing(SOCKET hSock)
             if (iSession != sessions.end())
             {
                 Message::Send(s, iSession->second->id, MR_BROKER, MT_REFRESH, (GetActiveUsers() + "-1"));
-                cout << GetActiveUsers() + "-1" << endl;
                 cout << iSession->second->id << " refreshed" << endl;
             }
         }
@@ -173,6 +172,8 @@ void Server()
     CSocket Server;
     Server.Create(12345);
     printf("Server started\n");
+    thread t1(CheckIfUserIsInactive);
+    t1.detach();
 
     for (int i = 0; i < 3; i++)
       LaunchClient();
@@ -183,8 +184,6 @@ void Server()
             break;
         CSocket s;
         Server.Accept(s);
-        thread t1(CheckIfUserIsInactive);
-        t1.detach();
         thread t(ClientProcessing, s.Detach());
         t.detach();
     }

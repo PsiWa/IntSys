@@ -36,7 +36,7 @@ void HistoryRead(string& uname)
     {
         while (getline(hist,line))
         {
-            cout << line << '\n';
+            cout << line << endl;
         }
         hist.close();
     }
@@ -73,12 +73,26 @@ int CheckCommands(string& str)
 {
     if (str == "/help")
         return 3;
-    else if (str == "/exit")
+    if (str == "/exit")
         return 1;
-    else if (str=="/whisper") //str ==  "/whisper"
+    auto pos = str.find("/whisper");
+    if (pos != str.npos)
+    {
+        str = str.erase(pos, size("/whisper"));
+        for (auto user : ActiveUsers)
+        {
+            pos = str.find(user.second);
+            if (pos != str.npos)
+            {
+                str = str.erase(pos, user.second.length()+1);
+                return user.first;
+            }
+        }
         return 2;
-    else
-        return 0;
+    } 
+    if (str == "/reconect")
+        return 4;
+    return 0;
 }
 
 void ProcessMessages()
@@ -87,8 +101,13 @@ void ProcessMessages()
     while (ExitFlag)
     {
         Message m = Message::Send(MR_BROKER, MT_REFRESH,to_string(ActiveUsers.size()));
-        if(m.GetAction()!=MT_DECLINE)
+        if (m.GetAction() != MT_DECLINE)
+        {
             RefreshActiveUsers(m.GetData());
+            cout << string(100, '\n') << endl;
+            HistoryRead(username);
+            PrintActiveUsers();
+        }
         m = Message::Send(MR_BROKER, MT_GETDATA);
         switch (m.GetAction())
         {
@@ -112,7 +131,7 @@ void ProcessMessages()
     cout << "Please reconect" << endl;
 }
 
-void Client()
+int Client()
 {
     AfxSocketInit();
     
@@ -120,12 +139,6 @@ void Client()
     {
         cout << "Enter User Name" << endl;
         cin >> username;
-        ofstream hist("history" + username + ".dat",ios::trunc);
-        if (hist.is_open())
-        {
-            hist << "";
-            hist.close();
-        }
         Message m = Message::Send(MR_BROKER, MT_INIT, username);
         if (m.GetAction() == MT_DECLINE)
         {
@@ -138,19 +151,19 @@ void Client()
             RefreshActiveUsers(m.GetData());
             HistoryRead(username);
             PrintActiveUsers();
-            cout << "You are welcome, " << username << endl;
             break;
         }
     }
-
+    cin.ignore();
     thread t(ProcessMessages);
     t.detach();
 
-    bool ExitFlag = true;
-    while (ExitFlag)
+    while (true)
     {
         string str;
-        cin >> str;
+        cin.clear();
+        getline(cin,str);
+        cout << str << "-1" << endl;
         int com = CheckCommands(str);
         switch(com)
         {
@@ -166,34 +179,32 @@ void Client()
         case 1:
         {
             Message::Send(MR_BROKER, MT_EXIT);
-            ExitFlag = false;
+            return 0;
             break;
         }
         case 2:
         {
-            cout << "Enter recipient ID: ";
-            cin >> str;
-            auto user = ActiveUsers.find(stoi(str));
-            if (user != ActiveUsers.end())
-            {
-                cout << "Text: " << endl;
-                cin.ignore();
-                getline(cin, str);
-                HistoryWrite("You whisperd to " + user->second + ": " + str, username);
-                Message::Send(user->first, MT_DATA, str);
-                cout << string(100, '\n') << endl;
-                HistoryRead(username);
-                PrintActiveUsers();
-            }
+            cout << "Error" << endl;;
             break;
         }
         case 3:
         {
-            cout << "Type /exit to exit; /whisper [UserName] [Message] to send private message" << endl;
+            cout << "Type:\n/exit to exit;\n/reconect to reconect to the server;\n/whisper [UserName] [Message] to send private message" << endl;
+            break;
+        }
+        case 4:
+        {
+            Message::Send(MR_BROKER, MT_EXIT);
+            return 1;
             break;
         }
         default:
         {
+            HistoryWrite("You whisperd to " + to_string(com) + ": " + str, username);
+            Message::Send(com, MT_DATA, str);
+            cout << string(100, '\n') << endl;
+            HistoryRead(username);
+            PrintActiveUsers();
             break;
         }
         }
@@ -223,7 +234,9 @@ int main()
         }
         else
         {
-            Client();
+            int ExitCode = 1;
+            while (ExitCode != 0)
+                ExitCode = Client();
             if (remove(("history"+username+".dat").c_str()) != 0)
                 perror("Error deleting file");
             else
