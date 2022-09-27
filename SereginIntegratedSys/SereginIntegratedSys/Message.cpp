@@ -59,7 +59,7 @@ Message Message::Send(int to, int action, const std::string& data)
 {
 	CSocket s;
 	s.Create();
-	if (!s.Connect("25.56.217.227", 12345))//127.0.0.1
+	if (!s.Connect("127.0.0.1", 12345))//25.56.217.227
 	{
 		throw std::runtime_error(GetLastErrorString());
 	}

@@ -45,37 +45,41 @@ string GetActiveUsers()
     string NamesAndIds = "";
     for (auto& session : sessions)
     {
-        NamesAndIds = NamesAndIds +to_string(session.second->id) + " " + session.second->GetName() + " ";
+        NamesAndIds = NamesAndIds + to_string(session.second->id) + " " + session.second->GetName() + " ";
     }
     return NamesAndIds;
 }
 
 void CheckIfUserIsInactive()
 {
-    int timespan = 30000;
+    int timespan = 5000;
     while (true)
     {
         if (sessions.size() > 0)
         {
             for (auto& session: sessions)
             {
-                if (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()
+                /*if (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()
                     - session.second->GetLastSeen()).count() > timespan)
                 {
                     Message m(session.second->id, MR_BROKER, MT_EXIT);
                     session.second->MessageAdd(m);
                     cout << session.second->id << " AFK" << endl;
-                }
+                }*/
                 if (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()
-                    - session.second->GetLastSeen()).count() > timespan * 2)
+                    - session.second->GetLastSeen()).count() > timespan )
                 {
-                    cout << "Session " + to_string(session.first) + "deleted" << endl;
+                    Message m(session.second->id, MR_BROKER, MT_EXIT);
+                    session.second->MessageAdd(m);
+                    cout << "Session " + to_string(session.first) + "deleted" << endl;                    
                     sessions.erase(session.first);
                     break;
                 }
             }
         }
+        cs.Lock();
         cout << "CheckIfUserIsInactive() sleeping" << endl;
+        cs.Unlock();
         Sleep(timespan);
     }
 }
@@ -97,7 +101,9 @@ void ClientProcessing(SOCKET hSock)
             {
                 Message::Send(s, 0, MR_BROKER, MT_DECLINE);
                 isDeclined = true;
+                cs.Lock();
                 cout << "error" << endl;
+                cs.Unlock();
             }
         }
         if (!isDeclined)
@@ -105,7 +111,9 @@ void ClientProcessing(SOCKET hSock)
             auto session = make_shared<Session>(++maxID, m.GetData());
             sessions[session->id] = session;
             Message::Send(s, session->id, MR_BROKER, MT_INIT, (GetActiveUsers() + "-1"));
+            cs.Lock();
             cout << session->id << " (" << session->GetName() << ") connected" << endl;
+            cs.Unlock();
             session->SetLastSeen();
         }
         break;
@@ -114,6 +122,7 @@ void ClientProcessing(SOCKET hSock)
     {
         sessions.erase(m.GetFrom());
         Message::Send(s, m.GetFrom(), MR_BROKER, MT_CONFIRM);
+        cs.Lock();
         cout << m.GetFrom() << " exited" << endl;
         break;
     }
@@ -123,6 +132,7 @@ void ClientProcessing(SOCKET hSock)
         if (iSession != sessions.end())
         {
             iSession->second->MessageSend(s);
+            iSession->second->SetLastSeen();
         }
         break;
     }
@@ -134,7 +144,9 @@ void ClientProcessing(SOCKET hSock)
             if (iSession != sessions.end())
             {
                 Message::Send(s, iSession->second->id, MR_BROKER, MT_REFRESH, (GetActiveUsers() + "-1"));
+                cs.Lock();
                 cout << iSession->second->id << " refreshed" << endl;
+                cs.Unlock();
             }
         }
         else
