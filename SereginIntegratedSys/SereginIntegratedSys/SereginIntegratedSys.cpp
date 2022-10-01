@@ -52,20 +52,13 @@ string GetActiveUsers()
 
 void CheckIfUserIsInactive()
 {
-    int timespan = 5000;
+    int timespan = 10000;
     while (true)
     {
         if (sessions.size() > 0)
         {
             for (auto& session: sessions)
             {
-                /*if (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()
-                    - session.second->GetLastSeen()).count() > timespan)
-                {
-                    Message m(session.second->id, MR_BROKER, MT_EXIT);
-                    session.second->MessageAdd(m);
-                    cout << session.second->id << " AFK" << endl;
-                }*/
                 if (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()
                     - session.second->GetLastSeen()).count() > timespan )
                 {
@@ -187,8 +180,8 @@ void Server()
     thread t1(CheckIfUserIsInactive);
     t1.detach();
 
-    for (int i = 0; i < 3; i++)
-      LaunchClient();
+    //for (int i = 0; i < 3; i++)
+    //  LaunchClient();
 
     while (true)
     {
