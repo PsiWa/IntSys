@@ -66,20 +66,31 @@ namespace SereginSharpClient
 
         private void SendBTN_Click(object sender, EventArgs e)
         {
-            int recipient = (int)MessageRecipients.MR_ALL;
-            var msg = MessageBOX.Text;
-            foreach (var user in ActiveUsers)
+            if (UsersLB.SelectedIndex < 0)
             {
-                if (UsersLB.SelectedItem.ToString().Contains(user.Value))
-                {
-                    recipient = user.Key;
-                    MessagesLB.Items.Add($"You whispered to {user.Value}: {msg}");
-                    break;
-                }
-                MessagesLB.Items.Add($"You: {msg}");
+                MessageBox.Show("You have not selected recipient");
             }
-            Message.send((MessageRecipients)recipient, MessageTypes.MT_DATA, (recipient == (int)MessageRecipients.MR_ALL ? "" : "(private) ") + msg);
-            MessageBOX.Clear();
+            else
+            {
+                int recipient = (int)MessageRecipients.MR_ALL;
+                var msg = MessageBOX.Text;
+                bool isPrivate = false;
+                foreach (var user in ActiveUsers)
+                {
+                    if (UsersLB.SelectedItem.ToString().Contains(user.Value))
+                    {
+                        recipient = user.Key;
+                        MessagesLB.Items.Add($"You whispered to {user.Value}: {msg}");
+                        isPrivate = true;
+                        break;
+                    }
+                    
+                }
+                if (!isPrivate)
+                    MessagesLB.Items.Add($"You: {msg}");
+                Message.send((MessageRecipients)recipient, MessageTypes.MT_DATA, (recipient == (int)MessageRecipients.MR_ALL ? "" : "(private) ") + msg);
+                MessageBOX.Clear();
+            }
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)

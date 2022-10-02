@@ -64,7 +64,7 @@ void CheckIfUserIsInactive()
                 {
                     Message m(session.second->id, MR_BROKER, MT_EXIT);
                     session.second->MessageAdd(m);
-                    cout << "Session " + to_string(session.first) + "deleted" << endl;                    
+                    cout << "Session " + to_string(session.first) + " deleted" << endl;                    
                     sessions.erase(session.first);
                     break;
                 }
@@ -72,6 +72,7 @@ void CheckIfUserIsInactive()
         }
         cs.Lock();
         cout << "CheckIfUserIsInactive() sleeping" << endl;
+        cout << GetActiveUsers() << endl;
         cs.Unlock();
         Sleep(timespan);
     }
@@ -114,8 +115,7 @@ void ClientProcessing(SOCKET hSock)
     case MT_EXIT:
     {
         sessions.erase(m.GetFrom());
-        Message::Send(s, m.GetFrom(), MR_BROKER, MT_CONFIRM);
-        cs.Lock();
+        //Message::Send(s, m.GetFrom(), MR_BROKER, MT_CONFIRM);
         cout << m.GetFrom() << " exited" << endl;
         break;
     }
