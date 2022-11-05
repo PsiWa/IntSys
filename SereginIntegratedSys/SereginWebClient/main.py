@@ -6,16 +6,20 @@ from tkinter import messagebox
 from tkinter import *
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
+
 class WebApp:
     def __init__(self):
         self.ActiveUsers = dict()
         self.username = ""
+        self.clientID = 0
+        self.messages = []
 
     def RefreshUsers(self, str):
         self.ActiveUsers.clear()
         buf = str.split(' ')
         for number in range(0, len(buf) - 1, 2):
             self.ActiveUsers[int(buf[number])] = buf[number + 1]
+
 
 class MainWindow:
     def __init__(self):
@@ -127,69 +131,107 @@ def ProcessMessagesApp(app):
         else:
             time.sleep(1)
 
+
 web = WebApp()
+
 
 def ProcessMessagesWeb(web):
     print('ProcessMessagesWeb started')
+    while msg.Message.ClientID == 0:
+        print('Not validated yet')
+        time.sleep(1)
     while True:
-        print(msg.Message.ClientID)
         m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_REFRESH, str(len(web.ActiveUsers)))
         if m.Header.hactioncode != msg.MT_DECLINE:
             web.RefreshUsers(str(m.Data))
         m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_GETDATA)
         if m.Header.hactioncode == msg.MT_DATA:
             print(f"{web.ActiveUsers[m.Header.hfrom]}: {m.Data}")
+            web.messages.append(f"{web.ActiveUsers[m.Header.hfrom]}: {m.Data}")
         elif m.Header.hactioncode == msg.MT_EXIT:
             m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_EXIT)
         else:
             time.sleep(1)
 
 
-test = 'aaaa'
-
-
 class requestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_response(200)
-        self.send_header('content-type', 'text/html')
-        self.end_headers()
-        output = '''<html>
-                    <head>
-                    <title>TRIS Chat</title>
-                    </head>
-                    <body>
-                    <h3>Enter username</h3>
-                    <form method="POST" enctype="multipart/form-data"">
-                    <br><input type=text name=username size=50>
-                    <input type=submit value="Send">'''
-        output+=f'<li>{test}</li>'
-        output += '</ul>'
+        global web
+        if self.path.endswith('/chat'):
+            self.send_response(200)
+            self.send_header('content-type', 'text/html')
+            self.end_headers()
+            output = f'''<html>
+                        <head>
+                        <title>TRIS Chat</title>
+                        </head>
+                        <body>
+                        <form method="POST" enctype="multipart/form-data">
+                        <h1>Hi {web.username}</h1>
+                        <select name=SelectName size=10>
+                        <option value=1>All users</option>'''
+            for key in web.ActiveUsers:
+                if key != web.clientID:
+                    output += f"<option value={key}>{web.ActiveUsers[key]}</option>"
+            output += '''</select>
+                        <textarea nname=chat rows=11 cols=50 wrap=virtual>'''
+            for m in web.messages:
+                output += m +"\n"
+            output += '''</textarea>
+                        <br><input type=text name=message size=50>
+                        <input type=submit value="Send">'''
+            output += '</form></body></html>'
+        else:
+            self.send_response(200)
+            self.send_header('content-type', 'text/html')
+            self.end_headers()
+            output = ''
+            with open('index.html') as f:
+                output += f.read()
         self.wfile.write(output.encode())
 
     def do_POST(self):
+        global web
+        self.send_response(301)
+        self.send_header('content-type', 'text/html')
         ctype, pdict = cgi.parse_header(self.headers['content-type'])
         pdict['boundary'] = bytes(pdict['boundary'], "utf-8")
         content_len = int(self.headers.get('Content-length'))
         pdict['Content-Length'] = content_len
-        self.send_response(301)
-        self.send_header('content-type', 'text/html')
-        self.send_header('Location', '/')
         if ctype == 'multipart/form-data':
-            fields = cgi.parse_multipart(self.rfile, pdict)
-            m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_INIT, fields.get("username")[0])
-            if m.Header.hactioncode != msg.MT_DECLINE:
-                print('success')
+            if self.path.endswith('/chat'):
+                fields = cgi.parse_multipart(self.rfile, pdict)
+                text = fields.get('message')[0]
+                try:
+                    a = int(fields.get('SelectName')[0])
+                except:
+                    a = 1
+                if a == 1:
+                    msg.Message.SendMessage(msg.MR_ALL,msg.MT_DATA,text)
+                    web.messages.append(f"You: {text}")
+                else:
+                    msg.Message.SendMessage(a,msg.MT_DATA,f"(private) {text}")
+                    web.messages.append(f"You whispered to {web.ActiveUsers[a]}: {text}")
+
+                self.send_header('Location', '/chat')
             else:
-                print('error')
-        self.end_headers()
+                fields = cgi.parse_multipart(self.rfile, pdict)
+                web.username = fields.get("username")[0]
+                m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_INIT, web.username)
+                if m.Header.hactioncode != msg.MT_DECLINE:
+                    print('success')
+                    web.clientID = msg.Message.ClientID
+                    self.send_header('Location', '/chat')
+                else:
+                    print('error')
+                    self.send_header('Location', '/')
+            self.end_headers()
 
 
 def ProcessServer():
     server_address = ("", 8080)
     print("Web interface started")
     HTTPServer(server_address, requestHandler).serve_forever()
-
-
 
 
 def main():
