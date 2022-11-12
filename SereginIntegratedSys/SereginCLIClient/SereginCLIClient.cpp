@@ -137,18 +137,21 @@ int Client()
     
     while (true)
     {
+        string pass = "";
         cout << "Enter User Name" << endl;
         cin >> username;
-        Message m = Message::Send(MR_BROKER, MT_INIT, username);
+        cout << "Enter password" << endl;
+        cin >> pass;
+        Message m = Message::Send(MR_BROKER, MT_INIT, username+' '+pass);
         if (m.GetAction() == MT_DECLINE)
         {
             cout << "Invalid User Name" << endl;
         }
-        else
+        else 
         {
-            HistoryWrite("server: Hello "+username, username);
+            HistoryWrite(m.GetData()+"\nserver: Hello "+username, username);
             cout << string(100, '\n') << endl;
-            RefreshActiveUsers(m.GetData());
+            //RefreshActiveUsers(m.GetData());
             HistoryRead(username);
             PrintActiveUsers();
             break;
@@ -163,7 +166,6 @@ int Client()
         string str;
         cin.clear();
         getline(cin,str);
-        //cout << str << "-1" << endl;
         int com = CheckCommands(str);
         switch(com)
         {

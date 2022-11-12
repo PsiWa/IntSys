@@ -28,7 +28,7 @@ namespace SereginSharpClient
         {
             if (UsernameTEXT.Text != "")
             {
-                var m = Message.send(MessageRecipients.MR_BROKER, MessageTypes.MT_INIT, UsernameTEXT.Text);
+                var m = Message.send(MessageRecipients.MR_BROKER, MessageTypes.MT_INIT, UsernameTEXT.Text+" "+PassTEXT.Text);
                 if (m.GetAction() == MessageTypes.MT_DECLINE)
                 {
                     MessageBox.Show("Error");
@@ -38,6 +38,9 @@ namespace SereginSharpClient
                 {
                     Form1.username = UsernameTEXT.Text;
                     formref.Enabled = true;
+                    string[] parts = m.GetData().Split(new[] { '\n' });
+                    foreach (string part in parts)
+                        mlbref.Items.Add(part);
                     mlbref.Items.Add($"server: Hello {UsernameTEXT.Text}!");
                     Thread t = new Thread(() => Form1.ProcessMessages(ref this.formref,ref this.mlbref, ref this.ulbref));
                     t.Start();

@@ -217,10 +217,13 @@ class requestHandler(BaseHTTPRequestHandler):
             else:
                 fields = cgi.parse_multipart(self.rfile, pdict)
                 web.username = fields.get("username")[0]
-                m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_INIT, web.username)
+                password = fields.get("password")[0]
+                m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_INIT, web.username+" "+password)
                 if m.Header.hactioncode != msg.MT_DECLINE:
                     print('success')
                     web.clientID = msg.Message.ClientID
+                    for p in m.Data.split("\n"):
+                        web.messages.append(p)
                     self.send_header('Location', '/chat')
                 else:
                     print('error')

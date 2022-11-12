@@ -7,22 +7,11 @@
 #include "Message.h"
 #include "Session.h"
 
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
-
-//extern "C"
-//{
-//    class AFX_EXT_CLASS Message;
-//
-//    __declspec(dllimport) void _stdcall StartServer();
-//
-//    __declspec(dllimport) void _stdcall StopServer();
-//
-//    __declspec(dllimport) bool _stdcall ServerListen(CSocket* s);
-//}
-// Единственный объект приложения
 
 CWinApp theApp;
 using namespace std;
@@ -38,6 +27,7 @@ void LaunchClient()
 
 int maxID = MR_USER;
 map<int, shared_ptr<Session>> sessions;
+CSocket HistorianSocket;
 CCriticalSection cs;
 
 string GetActiveUsers()
@@ -88,8 +78,13 @@ void ClientProcessing(SOCKET hSock)
     {
     case MT_INIT:
     {
-        bool isDeclined = false;
-        for (auto& [id, iSession] : sessions)
+        bool isDeclined = true;
+        Message::Send(HistorianSocket, MR_HISTORIAN, MR_BROKER, MT_INIT, m.GetData());
+        Message mh;
+        int hcode = mh.Receive(HistorianSocket);
+        if (hcode == MT_CONFIRM)
+            isDeclined = false;
+        /*for (auto& [id, iSession] : sessions)
         {
             if (iSession->GetName() == m.GetData())
             {
@@ -99,16 +94,30 @@ void ClientProcessing(SOCKET hSock)
                 cout << "error" << endl;
                 cs.Unlock();
             }
-        }
+        }*/
         if (!isDeclined)
         {
-            auto session = make_shared<Session>(++maxID, m.GetData());
+            stringstream IdAndName(mh.GetData());
+            int id;
+            string uname;
+            IdAndName >> id;
+            IdAndName >> uname;
+            auto session = make_shared<Session>(int(id),uname);
             sessions[session->id] = session;
-            Message::Send(s, session->id, MR_BROKER, MT_INIT, (GetActiveUsers() + "-1"));
+            Message::Send(HistorianSocket, MR_HISTORIAN, session->id, MT_REFRESH);
+            int hcode = mh.Receive(HistorianSocket);
+            Message::Send(s, session->id, MR_BROKER, MT_INIT, mh.GetData());
             cs.Lock();
             cout << session->id << " (" << session->GetName() << ") connected" << endl;
             cs.Unlock();
             session->SetLastSeen();
+        }
+        else
+        {
+            Message::Send(s, MR_USER, MR_BROKER, MT_DECLINE);
+            cs.Lock();
+            cout << "error" << endl;
+            cs.Unlock();
         }
         break;
     }
@@ -156,6 +165,7 @@ void ClientProcessing(SOCKET hSock)
             if (iSessionTo != sessions.end())
             {
                 iSessionTo->second->MessageAdd(m);
+                Message::Send(HistorianSocket, m.GetAddr(), m.GetFrom(), MT_DATA, m.GetData());
             }
             else if (m.GetAddr() == MR_ALL)
             {
@@ -164,12 +174,14 @@ void ClientProcessing(SOCKET hSock)
                     if (id != m.GetFrom())
                         session->MessageAdd(m);
                 }
+                Message::Send(HistorianSocket, MR_ALL, m.GetFrom(), MT_DATA, m.GetData());
             }
         }
         break;
     }
     }
 }
+
 
 void Server()
 {
@@ -180,9 +192,25 @@ void Server()
     thread t1(CheckIfUserIsInactive);
     t1.detach();
 
-    //for (int i = 0; i < 3; i++)
-    //  LaunchClient();
-
+    while (true)
+    {
+        if (!Server.Listen())
+            break;
+        Server.Accept(HistorianSocket);
+        Message m;
+        int code = m.Receive(HistorianSocket);
+        if (code == MT_INIT && m.GetFrom() == MR_HISTORIAN)
+        {
+            cout << "Historian connected!" << endl;
+            Message::Send(HistorianSocket,MR_HISTORIAN, MR_BROKER, MT_INIT, "start");
+            break;
+        }
+        else
+        {
+            Message::Send(HistorianSocket, 0, MR_BROKER, MT_DECLINE);
+            HistorianSocket.Detach();
+        }
+    }
     while (true)
     {
         if (!Server.Listen())

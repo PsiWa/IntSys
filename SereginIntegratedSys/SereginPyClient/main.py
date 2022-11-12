@@ -71,8 +71,10 @@ class UsernameWindow:
         self.app = app
         self.usrwnd = Toplevel(app.root)
         self.frame = Frame(self.usrwnd)
-        self.lbl = Label(self.usrwnd, text='Enter Username')
+        self.lbl1 = Label(self.usrwnd, text='Enter Username')
         self.usrname = Entry(self.usrwnd)
+        self.lbl2 = Label(self.usrwnd, text='Enter Password')
+        self.password = Entry(self.usrwnd)
         self.ackbtn = Button(self.usrwnd, command=self.AckUsername, text='Send')
         self.InitUI()
 
@@ -84,19 +86,24 @@ class UsernameWindow:
         self.usrwnd.resizable(width=False, height=False)
         self.frame.place(relwidth=1, relheight=1)
 
-        self.lbl.pack()
+        self.lbl1.pack()
         self.usrname.pack()
+        self.lbl2.pack()
+        self.password.pack()
         self.ackbtn.pack()
 
     def AckUsername(self):
         if (self.usrname.get() != ''):
-            m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_INIT, self.usrname.get())
+            m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_INIT, self.usrname.get()+" "+self.password.get())
             if (m.Header.hactioncode == msg.MT_DECLINE):
-                messagebox.showerror('Wrong username')
+                messagebox.showerror('Error','Wrong username or password')
                 self.usrname.delete(0, 'end')
+                self.password.delete(0, 'end')
             else:
                 self.app.username = self.usrname.get()
-                self.app.MsgList.insert(1, f"Server: Hello {self.app.username}!")
+                for p in m.Data.split('\n'):
+                    self.app.MsgList.insert('end', p)
+                self.app.MsgList.insert('end', f"Server: Hello {self.app.username}!")
                 t = threading.Thread(target=ProcessMessages, args=(self.app,))
                 t.start()
                 self.usrwnd.grab_release()

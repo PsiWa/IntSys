@@ -43,6 +43,7 @@
             this.MessagesLB.Name = "MessagesLB";
             this.MessagesLB.Size = new System.Drawing.Size(651, 334);
             this.MessagesLB.TabIndex = 0;
+
             // 
             // UsersLB
             // 

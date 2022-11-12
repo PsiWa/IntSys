@@ -24,7 +24,8 @@ enum MessageRecipients
 {
 	MR_BROKER = 1,
 	MR_ALL = 0,
-	MR_USER = 100
+	MR_USER = 100,
+	MR_HISTORIAN = 2
 };
 
 

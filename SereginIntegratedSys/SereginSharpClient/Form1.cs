@@ -97,5 +97,6 @@ namespace SereginSharpClient
         {
             Message.send(MessageRecipients.MR_BROKER, MessageTypes.MT_EXIT);
         }
+
     }
 }
