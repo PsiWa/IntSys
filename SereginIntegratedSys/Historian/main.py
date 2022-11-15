@@ -44,7 +44,7 @@ def main():
                 if m.Header.hactioncode == msg.MT_INIT:
                     id = 0
                     buf = m.Data.split(' ')
-                    res = cur.execute(f"""SELECT id,password FROM user WHERE username = '{buf[0]}'""")
+                    res = cur.execute("""SELECT id,password FROM user WHERE username = (?)""",(buf[0],))
                     try:
                         (id,password)  = res.fetchone()
                     except TypeError:
@@ -52,7 +52,7 @@ def main():
                     if id ==0 :
                         cur.execute("""INSERT INTO user (username,password) VALUES (?,?)""", (buf[0],buf[1]))
                         con.commit()
-                        res = cur.execute(f"""SELECT id,password FROM user WHERE username = '{buf[0]}'""")
+                        res = cur.execute("""SELECT id,password FROM user WHERE username = (?)""",(buf[0],))
                         try:
                             (id, password) = res.fetchone()
                             m = msg.Message(msg.MR_BROKER, msg.MT_CONFIRM, str(id) + " " + buf[0])
@@ -61,6 +61,8 @@ def main():
                         except TypeError:
                             m = msg.Message(msg.MR_BROKER, msg.MT_DECLINE)
                             m.Send(s)
+                        except Exception:
+                            traceback.print_exc()
                     else:
                         if str(buf[1]) == str(password):
                             m = msg.Message(msg.MR_BROKER, msg.MT_CONFIRM, str(id) + " "+buf[0])
@@ -69,10 +71,13 @@ def main():
                             m = msg.Message(msg.MR_BROKER, msg.MT_DECLINE)
                             m.Send(s)
                 elif m.Header.hactioncode == msg.MT_REFRESH:
-                    read_data = "Message history:\n"
-                    with open('History/0.dat', encoding="utf-8") as f:
-                        read_data += f.read()
-                    f.close()
+                    try:
+                        read_data = "Message history:\n"
+                        with open('History/0.dat', encoding="utf-8") as f:
+                            read_data += f.read()
+                        f.close()
+                    except FileNotFoundError:
+                        read_data = "Message history:\n"
                     read_data+="Private messages:\n"
                     try:
                         with open(f'History/{m.Header.hfrom}.dat', encoding="utf-8") as f:
@@ -90,6 +95,9 @@ def main():
                     else:
                         with open(f'History/{m.Header.haddr}.dat','a', encoding="utf-8") as f:
                             f.write(f"{users[m.Header.hfrom]}:{m.Data}\n")
+                        f.close()
+                        with open(f'History/{m.Header.hfrom}.dat','a', encoding="utf-8") as f:
+                            f.write(f"You:{m.Data}\n")
                         f.close()
 
 

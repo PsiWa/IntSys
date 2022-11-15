@@ -32,7 +32,7 @@ class MainWindow:
         self.UsrList = Listbox(self.frame1, width=50, height=100)
         self.SendBtn = Button(self.frame2, text='Send', command=self.btn_click, width=20, height=1)
         self.MsgInput = Entry(self.frame2, width=70)
-        self.InitUI();
+        self.InitUI()
 
     def InitUI(self):
         self.root['bg'] = '#FFFAFA'
