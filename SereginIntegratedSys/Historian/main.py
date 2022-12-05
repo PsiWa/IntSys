@@ -1,5 +1,7 @@
 import sqlite3
 import os
+import traceback
+
 import message as msg
 import socket
 

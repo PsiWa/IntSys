@@ -22,11 +22,11 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "last_opened_file_path": "C:/Users/fedor/Documents/GitHub/IntSys/SereginIntegratedSys/SereginPyClient"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/fedor/Documents/GitHub/IntSys/SereginIntegratedSys/Historian&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected="Python.main">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" singleton="false" nameIsGenerated="true">
       <module name="SereginPyREST" />
