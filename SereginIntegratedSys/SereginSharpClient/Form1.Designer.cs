@@ -36,14 +36,12 @@
             // 
             // MessagesLB
             // 
-            this.MessagesLB.Enabled = false;
             this.MessagesLB.FormattingEnabled = true;
             this.MessagesLB.ItemHeight = 15;
             this.MessagesLB.Location = new System.Drawing.Point(137, 12);
             this.MessagesLB.Name = "MessagesLB";
             this.MessagesLB.Size = new System.Drawing.Size(651, 334);
             this.MessagesLB.TabIndex = 0;
-
             // 
             // UsersLB
             // 

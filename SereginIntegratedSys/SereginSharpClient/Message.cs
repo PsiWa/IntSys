@@ -43,7 +43,7 @@ namespace SereginSharpClient
         public int hsize;
     };
 
-    internal class Message
+    public class Message //internal изначально
     {
         private MessageHeader header;
         private string data;

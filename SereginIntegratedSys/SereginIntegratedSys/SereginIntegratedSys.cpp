@@ -142,6 +142,13 @@ void ClientProcessing(SOCKET hSock)
     {
         if (stoi(m.GetData()) != int(sessions.size()))
         {
+            if (m.GetFrom() == MR_REST)
+            {
+                Message::Send(s, MR_REST, MR_BROKER, MT_REFRESH, (GetActiveUsers() + "-1"));
+                cs.Lock();
+                cout << "MR_REST refreshed" << endl;
+                cs.Unlock();
+            }
             auto iSession = sessions.find(m.GetFrom());
             if (iSession != sessions.end())
             {

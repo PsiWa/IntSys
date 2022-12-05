@@ -15,6 +15,47 @@ map<int, string> ActiveUsers;
 CCriticalSection cs;
 string username = "";
 
+string getpass(const char* prompt, bool show_asterisk = true)
+{
+    const char BACKSPACE = 8;
+    const char RETURN = 13;
+
+    string password;
+    unsigned char ch = 0;
+
+    cout << prompt << endl;
+
+    DWORD con_mode;
+    DWORD dwRead;
+
+    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+
+    GetConsoleMode(hIn, &con_mode);
+    SetConsoleMode(hIn, con_mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+
+    while (ReadConsoleA(hIn, &ch, 1, &dwRead, NULL) && ch != RETURN)
+    {
+        if (ch == BACKSPACE)
+        {
+            if (password.length() != 0)
+            {
+                if (show_asterisk)
+                    cout << "\b \b";
+                password.resize(password.length() - 1);
+            }
+        }
+        else
+        {
+            password += ch;
+            if (show_asterisk)
+                cout << '*';
+        }
+    }
+    cout << endl;
+    SetConsoleMode(hIn, con_mode);
+    return password;
+}
+
 void HistoryWrite(string str,string& uname)
 {
     cs.Lock();
@@ -140,8 +181,7 @@ int Client()
         string pass = "";
         cout << "Enter User Name" << endl;
         cin >> username;
-        cout << "Enter password" << endl;
-        cin >> pass;
+        pass = getpass("Enter password", true);
         Message m = Message::Send(MR_BROKER, MT_INIT, username+' '+pass);
         if (m.GetAction() == MT_DECLINE)
         {

@@ -1,15 +1,21 @@
-import sys
 import threading
-from dataclasses import dataclass
 import socket, struct, time
 from tkinter import messagebox
+import requests
 import message as msg
 from tkinter import *
+
+
+def SendRequest(params):
+    URL = "http://localhost:8000"
+    r = requests.get(url=URL, json=params)
+    return r.json()
 
 
 class MainWindow:
     def __init__(self):
         self.username = ""
+        self.id = 0;
         self.ActiveUsers = dict()
         self.root = Tk()
         self.frame1 = Frame(self.root)
@@ -19,6 +25,19 @@ class MainWindow:
         self.SendBtn = Button(self.frame2, text='Send', command=self.btn_click, width=20, height=1)
         self.MsgInput = Entry(self.frame2, width=70)
         self.InitUI();
+
+    def SendInit(self,username,password):
+        resp = SendRequest({'to': msg.MR_BROKER, 'from': '', 'type': msg.MT_INIT, 'data': username + " "+password})
+        return resp
+
+    def Send(self, id, message):
+        a = SendRequest({'to': id, 'from': self.id, 'type': msg.MT_DATA, 'data': message})
+
+    def SendAll(self, message):
+        a = SendRequest({'to': msg.MR_ALL, 'from': self.id, 'type': msg.MT_DATA, 'data': message})
+
+    def SendExit(self):
+        a = SendRequest({'to': msg.MR_BROKER, 'from': self.id, 'type': msg.MT_EXIT, 'data': ''})
 
     def InitUI(self):
         self.root['bg'] = '#FFFAFA'
@@ -36,7 +55,7 @@ class MainWindow:
 
     def on_closing(self):
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
-            m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_EXIT)
+            self.SendExit()
             self.root.destroy()
 
     def btn_click(self):
@@ -47,11 +66,13 @@ class MainWindow:
             if str(self.UsrList.get(ANCHOR)).find(value)!=-1:
                 recipient = key
                 self.MsgList.insert('end',f"You whispered to {value}: {message}")
+                message = "(private) "+message
                 isPrivate = True
                 break
         if not isPrivate:
             self.MsgList.insert('end',f"You: {message}")
-        m = msg.Message.SendMessage(recipient, msg.MT_DATA, message)
+        self.Send(recipient,message)
+        #m = msg.Message.SendMessage(recipient, msg.MT_DATA, message)
         self.MsgInput.delete(0,'end')
 
     def RefreshUsers(self, str):
@@ -94,45 +115,47 @@ class UsernameWindow:
 
     def AckUsername(self):
         if (self.usrname.get() != ''):
-            m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_INIT, self.usrname.get()+" "+self.password.get())
-            if (m.Header.hactioncode == msg.MT_DECLINE):
+            a = self.app.SendInit(self.usrname.get(),self.password.get())
+            if int(a['type'])==msg.MT_DECLINE:
                 messagebox.showerror('Error','Wrong username or password')
                 self.usrname.delete(0, 'end')
                 self.password.delete(0, 'end')
             else:
                 self.app.username = self.usrname.get()
-                for p in m.Data.split('\n'):
+                for p in a['data'].split('$&'):
                     self.app.MsgList.insert('end', p)
                 self.app.MsgList.insert('end', f"Server: Hello {self.app.username}!")
-                t = threading.Thread(target=ProcessMessages, args=(self.app,))
+                self.app.id = int(a['to'])
+                t = threading.Thread(target=ProcessMessagesREST, args=(self.app,))
                 t.start()
                 self.usrwnd.grab_release()
                 self.usrwnd.destroy()
 
 
-def ProcessMessages(app):
+def ProcessMessagesREST(app):
     while True:
-        m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_REFRESH, str(len(app.ActiveUsers)))
-        if m.Header.hactioncode != msg.MT_DECLINE:
-            app.RefreshUsers(str(m.Data))
-        m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_GETDATA)
-        if m.Header.hactioncode == msg.MT_DATA:
-            app.MsgList.insert('end', f"{app.ActiveUsers[m.Header.hfrom]}: {m.Data}")
-        elif m.Header.hactioncode == msg.MT_EXIT:
-            m = msg.Message.SendMessage(msg.MR_BROKER, msg.MT_EXIT)
+        a = SendRequest({'to': msg.MR_BROKER, 'from': app.id, 'type': msg.MT_REFRESH, 'data': str(len(app.ActiveUsers))})
+        if int(a['type']) != msg.MT_DECLINE:
+            app.RefreshUsers(a['data'])
+            print('Refreshed '+a['data'])
+            print(len(app.ActiveUsers))
+        a = SendRequest({'to': msg.MR_BROKER, 'from': app.id, 'type': msg.MT_GETDATA, 'data': ''})
+        if int(a['type']) == msg.MT_DATA:
+            print("New message: " + a['data'] + "\nFrom: " + a['from'])
+            app.MsgList.insert('end', f"{app.ActiveUsers[int(a['from'])]}: {a['data']}")
+        elif int(a['type']) == msg.MT_EXIT:
+            app.SendExit()
             app.root.destroy()
         else:
             time.sleep(1)
 
 
 def main():
-    app = MainWindow();
+    app = MainWindow()
     app.UsrList.insert(1, 'All users')
-    # msg.Message.SendMessage(msg.MR_BROKER, msg.MT_INIT, 'pyuser')
     UsernameWindow(app)
     app.root.protocol("WM_DELETE_WINDOW", app.on_closing)
     app.root.mainloop()
-
 
 if __name__ == '__main__':
     main()
